@@ -306,6 +306,7 @@ sub create_project
 	my $self = shift;
 	my $title = shift or die 'No title given';
 	my $summary = shift || '';
+	my $template = shift;
 
 	# The redirect magic does not work for POSTs and we can't really
 	# handle 401s until the API provides reason for them...
@@ -318,6 +319,7 @@ sub create_project
 			meta => {
 				summary => $summary,
 				title => $title,
+				projectTemplate => $template
 			}
 	}})->{uri};
 }
@@ -410,25 +412,26 @@ sub get_roles_by_id
 	return %roles;
 }
 
-sub schedule {
-	
-}
+#sub schedule {
+#	
+#}
 
 sub schedule_msetl_graph {
 	my $self = shift;
-	my $projectUri = shift;
+	my $project_uri = shift;
 	my $trans_id = shift;
 	my $graph = shift;
 	my $cron = shift;
-	my %params = shift || { };
-	my %hiddenParams = shift;
+	my $params = shift || { };
+	my $hiddenParams = shift;
 	
-	$params{"TRANSFORMATION_ID"} = $trans_id;
-	$params{"CLOVER_GRAPH"} = $graph;
+	$params->{"TRANSFORMATION_ID"} = $trans_id;
+	$params->{"CLOVER_GRAPH"} = $graph;
 	
-	return $self->{agent}->post ($projectUri."/etl/clover/transformations", {schedule => {
+	return $self->{agent}->post ($project_uri.'/schedules', {schedule => { #TODO no link to schedules
 		type => "MSETL",
-		params => %params,
+		params => $params,
+		hiddenParams => $hiddenParams,
 		cron => $cron
 	}});
 }
