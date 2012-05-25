@@ -322,6 +322,132 @@ sub create_project
 	}})->{uri};
 }
 
+=item B<create_user>
+
+Create a user given its login, password, first name, surname, phone and optionally companny,
+return his identifier.
+
+=cut
+
+sub create_user
+{
+	my $self = shift;
+	my $login = shift;
+	my $passwd = shift;
+	my $firstname = shift;
+	my $lastname = shift;
+	my $phone = shift;
+	my $company = shift || '';
+	
+	return $self->{agent}->post ('/gdc/account/domains/default/users', { #TODO get_uri, create BUG in JIRA
+		accountSetting => {
+			login => $login,
+			password => $passwd,
+			verifyPassword => $passwd,
+			firstName => $firstname,
+			lastName => $firstname,
+			phoneNumber => $phone,
+			companyName => $company
+	}})->{uri};
+}
+
+=item B<assigh_user>
+
+Assign user to project
+return his identifier.
+
+=cut
+
+sub assign_user
+{
+	my $self = shift;
+	my $user = shift;
+	my $project = shift;
+	my $role = shift;
+	
+	my @userRoles = ($role);
+
+	return $self->{agent}->post ($self->get_uri (new URI($project),'users'), {
+		user => {
+			content => {
+				status => "ENABLED",
+				userRoles => \@userRoles
+			},
+			links => {
+				self => $user
+			}
+	}});
+}
+
+=item B<get_roles>
+
+Create a user given its login, password, first name, surname, phone and optionally companny,
+return his identifier.
+
+=cut
+
+sub get_roles
+{
+	my $self = shift;
+	my $project = shift;
+	
+	return $self->{agent}->get ($self->get_uri (new URI($project), 'roles'))->{projectRoles}{roles};
+}
+
+sub get_roles_by_id
+{
+	my $self = shift;
+	my $project = shift;
+	my $rolesUris = $self->get_roles ($project);
+	
+	my %roles;	
+	
+	foreach my $roleUri (@$rolesUris) {
+		my $role = $self->{agent}-> get ($roleUri);
+		my $roleId = $role->{projectRole}{meta}{identifier};
+		$roles{$roleId} = $roleUri;
+	}
+	return %roles;
+}
+
+sub schedule {
+	
+}
+
+sub schedule_msetl_graph {
+	my $self = shift;
+	my $projectUri = shift;
+	my $trans_id = shift;
+	my $graph = shift;
+	my $cron = shift;
+	my %params = shift || { };
+	my %hiddenParams = shift;
+	
+	$params{"TRANSFORMATION_ID"} = $trans_id;
+	$params{"CLOVER_GRAPH"} = $graph;
+	
+	return $self->{agent}->post ($projectUri."/etl/clover/transformations", {schedule => {
+		type => "MSETL",
+		params => %params,
+		cron => $cron
+	}});
+}
+
+sub create_clover_transformation
+{
+	my $self = shift;
+	my $projectUri = shift;
+	my $name = shift;
+	my $path = shift;
+	
+	return $self->{agent}->post ($projectUri."/etl/clover/transformations", { #TODO get_uri, BUG in JIRA
+		cloverTransformation => {
+			name => $name,
+			path => $path
+		}
+	});
+}
+
 =item B<reports> PROJECT
 
 Return array of links to repoort resources on metadata server.
