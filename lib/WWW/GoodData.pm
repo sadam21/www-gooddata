@@ -294,9 +294,9 @@ sub delete_project
 	$self->{agent}->delete ($uri);
 }
 
-=item B<create_project> TITLE SUMMARY
+=item B<create_project> TITLE SUMMARY TEMPLATE
 
-Create a project given its title and optionally summary,
+Create a project given its title and optionally summary and template,
 return its identifier.
 
 =cut
@@ -322,6 +322,19 @@ sub create_project
 				projectTemplate => $template
 			}
 	}})->{uri};
+}
+
+sub wait_project_enabled
+{
+	my $self = shift;
+	my $project_uri = shift;
+
+	my $exported = $self->poll (
+		sub { $self->{agent}->get ($project_uri) },
+		sub { $_[0] and exists $_[0]->{project} and exists $_[0]->{project}{content} and exists $_[0]->{project}{content}{state} and 
+			!($_[0]->{project}{content}{state} =~ /^(PREPARING|PREPARED|LOADING)$/)
+		}
+	) or die 'Timed out waiting for project preparation';
 }
 
 =item B<create_user>
