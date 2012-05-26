@@ -324,10 +324,17 @@ sub create_project
 	}})->{uri};
 }
 
+=item B<wait_project_enabled> PROJECT_URI
+
+Wait until project identified by its id is in enabled state,
+return its identifier.
+
+=cut
+
 sub wait_project_enabled
 {
 	my $self = shift;
-	my $project_uri = shift;
+	my $project_uri = shift || die 'Project uri was not specified.';
 
 	my $state;
 	my $exported = $self->poll (
@@ -339,7 +346,7 @@ sub wait_project_enabled
 	($state eq 'ENABLED') or die "Unable to enable project";
 }
 
-=item B<create_user>
+=item B<create_user> LOGIN PASSWORD FIRST_NAME LAST_NAME PHONE COMPANY
 
 Create a user given its login, password, first name, surname, phone and optionally company,
 return his identifier.
@@ -368,9 +375,9 @@ sub create_user
 	}})->{uri};
 }
 
-=item B<assigh_user>
+=item B<assigh_user> USER PROJECT ROLE
 
-Assign user to project
+Assign user to project.
 return his identifier.
 
 =cut
@@ -398,8 +405,8 @@ sub assign_user
 
 =item B<get_roles>
 
-Create a user given its login, password, first name, surname, phone and optionally companny,
-return his identifier.
+Gets project roles. Project is identified by its id.
+return array of project roles.
 
 =cut
 
@@ -410,6 +417,13 @@ sub get_roles
 	
 	return $self->{agent}->get ($self->get_uri (new URI($project), 'roles'))->{projectRoles}{roles};
 }
+
+=item B<get_roles_by_id>
+
+Gets project roles. Project is identified by its id.
+return hash map role id => role uri.
+
+=cut
 
 sub get_roles_by_id
 {
@@ -427,11 +441,37 @@ sub get_roles_by_id
 	return %roles;
 }
 
-#TODO
-#sub schedule {
-#	
-#}
 
+=item B<schedule> PROJECT_URI CRON PARAMS HIDDEN_PARAMS
+
+Create a schedule given its project, type, cron expression and optionally
+parameters and hidden parameters, return its id.
+
+=cut
+
+sub schedule {
+	my $self = shift;
+	my $project_uri = shift;
+	my $type = shift;
+	my $cron = shift;
+	my $params = shift || { };
+	my $hidden_params = shift || { };
+	
+	return $self->{agent}->post ($project_uri.'/schedules', {schedule => { #TODO no link to schedules
+		type => $type,
+		params => $params,
+		hiddenParams => $hidden_params,
+		cron => $cron
+	}});
+}
+
+=item B<schedule> PROJECT_URI CRON PARAMS HIDDEN_PARAMS
+
+Create a MSETL schedule given its project, clover transformation id,
+clover graph to schedule, cron expression and optionally
+parameters and hidden parameters, return its id.
+
+=cut
 sub schedule_msetl_graph {
 	my $self = shift;
 	my $project_uri = shift;
@@ -439,17 +479,14 @@ sub schedule_msetl_graph {
 	my $graph = shift;
 	my $cron = shift;
 	my $params = shift || { };
-	my $hiddenParams = shift;
+	my $hidden_params = shift || { };
+	
+	my $type = "MSETL";
 	
 	$params->{"TRANSFORMATION_ID"} = $trans_id;
 	$params->{"CLOVER_GRAPH"} = $graph;
-	
-	return $self->{agent}->post ($project_uri.'/schedules', {schedule => { #TODO no link to schedules
-		type => "MSETL",
-		params => $params,
-		hiddenParams => $hiddenParams,
-		cron => $cron
-	}});
+
+	return $self->schedule ($project_uri, $type, $cron, $params, $hidden_params)
 }
 
 sub create_clover_transformation
@@ -463,10 +500,10 @@ sub create_clover_transformation
 	my $file = $transformation.'.zip';
 	my $path = '/uploads/'.$file;
 
-	#download clover transformation from template
+	# download clover transformation from project template
 	my $content = $self->{agent}->get ($template.'/'.$file);
 
-	#upload clover transformation
+	# upload clover transformation
 	my $uploads = new URI ($self->get_uri ('uploads'));
 	$uploads->path_segments ($uploads->path_segments, $file);
 	$self->{agent}->request (new HTTP::Request (PUT => $uploads,
