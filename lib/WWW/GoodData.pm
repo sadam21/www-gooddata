@@ -427,6 +427,7 @@ sub get_roles_by_id
 	return %roles;
 }
 
+#TODO
 #sub schedule {
 #	
 #}
@@ -455,47 +456,29 @@ sub create_clover_transformation
 {
 	my $self = shift;
 	my $projectUri = shift;
-	my $name = shift;
-	my $path = shift;
-	
+	my $template = shift;
+	my $transformation = shift;
+	my $name = shift || $transformation;
+
+	my $file = $transformation.'.zip';
+	my $path = '/uploads/'.$file;
+
+	#download clover transformation from template
+	my $content = $self->{agent}->get ($template.'/'.$file);
+
+	#upload clover transformation
+	my $uploads = new URI ($self->get_uri ('uploads'));
+	$uploads->path_segments ($uploads->path_segments, $file);
+	$self->{agent}->request (new HTTP::Request (PUT => $uploads,
+		['Content-Type' => 'application/zip'], $content->{raw}));
+
+	# create transformation
 	return $self->{agent}->post ($projectUri."/etl/clover/transformations", { #TODO get_uri, BUG in JIRA
 		cloverTransformation => {
 			name => $name,
 			path => $path
 		}
 	});
-}
-
-sub upload_file
-{
-	my $self = shift;
-	my $file = shift || die 'No file to upload was specified';
-	
-	my $uploads = new URI ($self->get_uri ('uploads'));
-	$uploads->path_segments ($uploads->path_segments, $file);
-	$self->{agent}->request (new HTTP::Request (PUT => $uploads,
-		['Content-Type' => 'application/zip'], $file));
-}
-
-sub upload_file2
-{
-	my $self = shift;
-	my $content = shift;
-	my $file = shift || die 'No file to upload was specified';
-	
-	my $uploads = new URI ($self->get_uri ('uploads'));
-	$uploads->path_segments ($uploads->path_segments, $file);
-	$self->{agent}->request (new HTTP::Request (PUT => $uploads,
-		['Content-Type' => 'application/zip'], $content));
-}
-
-sub download_transformation_file
-{
-	my $self = shift;
-	my $template = shift;
-	my $transformation = shift;
-	#print $template.$transformation.'.zip';
-	return $self->{agent}->get ($template.'/'.$transformation.'.zip');
 }
 
 =item B<reports> PROJECT
