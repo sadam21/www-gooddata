@@ -329,17 +329,19 @@ sub wait_project_enabled
 	my $self = shift;
 	my $project_uri = shift;
 
+	my $state;
 	my $exported = $self->poll (
 		sub { $self->{agent}->get ($project_uri) },
 		sub { $_[0] and exists $_[0]->{project} and exists $_[0]->{project}{content} and exists $_[0]->{project}{content}{state} and 
-			!($_[0]->{project}{content}{state} =~ /^(PREPARING|PREPARED|LOADING)$/)
+			(($state = $_[0]->{project}{content}{state}) !~ /^(PREPARING|PREPARED|LOADING)$/)
 		}
 	) or die 'Timed out waiting for project preparation';
+	($state eq 'ENABLED') or die "Unable to enable project";
 }
 
 =item B<create_user>
 
-Create a user given its login, password, first name, surname, phone and optionally companny,
+Create a user given its login, password, first name, surname, phone and optionally company,
 return his identifier.
 
 =cut
@@ -462,6 +464,38 @@ sub create_clover_transformation
 			path => $path
 		}
 	});
+}
+
+sub upload_file
+{
+	my $self = shift;
+	my $file = shift || die 'No file to upload was specified';
+	
+	my $uploads = new URI ($self->get_uri ('uploads'));
+	$uploads->path_segments ($uploads->path_segments, $file);
+	$self->{agent}->request (new HTTP::Request (PUT => $uploads,
+		['Content-Type' => 'application/zip'], $file));
+}
+
+sub upload_file2
+{
+	my $self = shift;
+	my $content = shift;
+	my $file = shift || die 'No file to upload was specified';
+	
+	my $uploads = new URI ($self->get_uri ('uploads'));
+	$uploads->path_segments ($uploads->path_segments, $file);
+	$self->{agent}->request (new HTTP::Request (PUT => $uploads,
+		['Content-Type' => 'application/zip'], $content));
+}
+
+sub download_transformation_file
+{
+	my $self = shift;
+	my $template = shift;
+	my $transformation = shift;
+	#print $template.$transformation.'.zip';
+	return $self->{agent}->get ($template.'/'.$transformation.'.zip');
 }
 
 =item B<reports> PROJECT
