@@ -326,7 +326,7 @@ sub create_project
 
 =item B<wait_project_enabled> PROJECT_URI
 
-Wait until project identified by its id is in enabled state,
+Wait until project identified by its uri is in enabled state,
 return its identifier.
 
 =cut
@@ -363,7 +363,7 @@ sub create_user
 	my $phone = shift;
 	my $company = shift || '';
 	
-	return $self->{agent}->post ('/gdc/account/domains/default/users', { #TODO get_uri, create BUG in JIRA
+	return $self->{agent}->post ('/gdc/account/domains/default/users', { #TODO links does not exists
 		accountSetting => {
 			login => $login,
 			password => $passwd,
@@ -414,8 +414,9 @@ sub get_roles
 {
 	my $self = shift;
 	my $project = shift;
-	
-	return $self->{agent}->get ($self->get_uri (new URI($project), 'roles'))->{projectRoles}{roles};
+
+	return $self->{agent}->get (
+		$self->get_uri (new URI($project), 'roles'))->{projectRoles}{roles};
 }
 
 =item B<get_roles_by_id>
@@ -430,9 +431,9 @@ sub get_roles_by_id
 	my $self = shift;
 	my $project = shift;
 	my $rolesUris = $self->get_roles ($project);
-	
-	my %roles;	
-	
+
+	my %roles;
+
 	foreach my $roleUri (@$rolesUris) {
 		my $role = $self->{agent}-> get ($roleUri);
 		my $roleId = $role->{projectRole}{meta}{identifier};
@@ -445,7 +446,7 @@ sub get_roles_by_id
 =item B<schedule> PROJECT_URI CRON PARAMS HIDDEN_PARAMS
 
 Create a schedule given its project, type, cron expression and optionally
-parameters and hidden parameters, return its id.
+parameters and hidden parameters, return created schedule object.
 
 =cut
 
@@ -457,7 +458,7 @@ sub schedule {
 	my $params = shift || { };
 	my $hidden_params = shift || { };
 	
-	return $self->{agent}->post ($project_uri.'/schedules', {schedule => { #TODO no link to schedules
+	return $self->{agent}->post ($project_uri.'/schedules', {schedule => { #TODO no link to schedules does not exists
 		type => $type,
 		params => $params,
 		hiddenParams => $hidden_params,
@@ -465,13 +466,14 @@ sub schedule {
 	}});
 }
 
-=item B<schedule> PROJECT_URI CRON PARAMS HIDDEN_PARAMS
+=item B<schedule_msetl_graph> PROJECT_URI TRANSFORMATION_ID GRAPH_NAME CRON PARAMS HIDDEN_PARAMS
 
 Create a MSETL schedule given its project, clover transformation id,
 clover graph to schedule, cron expression and optionally
-parameters and hidden parameters, return its id.
+parameters and hidden parameters, return created schedule object.
 
 =cut
+
 sub schedule_msetl_graph {
 	my $self = shift;
 	my $project_uri = shift;
@@ -486,8 +488,17 @@ sub schedule_msetl_graph {
 	$params->{"TRANSFORMATION_ID"} = $trans_id;
 	$params->{"CLOVER_GRAPH"} = $graph;
 
-	return $self->schedule ($project_uri, $type, $cron, $params, $hidden_params)
+	return $self->schedule (
+		$project_uri, $type, $cron, $params, $hidden_params);
 }
+
+=item B<create_clover_transformation> PROJECT_URI TEMPLATE TRANSFORMATION_ID NAME
+
+Create a clover transformation given its project uri, template, clover
+transformation id in template and optionaly name, return created transformation
+object.
+
+=cut
 
 sub create_clover_transformation
 {
@@ -500,17 +511,17 @@ sub create_clover_transformation
 	my $file = $transformation.'.zip';
 	my $path = '/uploads/'.$file;
 
-	# download clover transformation from project template
+	# download clover transformation zip file from project template
 	my $content = $self->{agent}->get ($template.'/'.$file);
 
-	# upload clover transformation
+	# upload clover transformation zip file
 	my $uploads = new URI ($self->get_uri ('uploads'));
 	$uploads->path_segments ($uploads->path_segments, $file);
 	$self->{agent}->request (new HTTP::Request (PUT => $uploads,
 		['Content-Type' => 'application/zip'], $content->{raw}));
 
 	# create transformation
-	return $self->{agent}->post ($projectUri."/etl/clover/transformations", { #TODO get_uri, BUG in JIRA
+	return $self->{agent}->post ($projectUri."/etl/clover/transformations", { #TODO links does not exists
 		cloverTransformation => {
 			name => $name,
 			path => $path
