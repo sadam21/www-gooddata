@@ -324,6 +324,43 @@ sub create_project
 	}})->{uri};
 }
 
+sub create_integration_process
+{
+	my $self = shift;
+	my $integration_uri = shift || die 'Integration URI was not specified.';
+	my $params = shift || {};
+
+	return $self->{agent}->post ($self->get_uri (new URI($integration_uri),'processes'), {
+		process => $params
+	})->{uri};
+}
+
+sub get_integration_process
+{
+	my $self = shift;
+	my $process_uri = shift || die 'Integration process URI was not specified';
+	return $self->{agent}->get (
+		$self->get_uri ($process_uri));
+}
+
+sub wait_integration_synchronized
+{
+	my $self = shift;
+	my $process_uri = shift || die 'Integration process URI was not specified.';
+
+	my $state;
+	$self->poll (
+		sub { $self->{agent}->get ($process_uri) },
+		sub { $_[0] and exists $_[0]->{process} and exists $_[0]->{process}{status} and exists $_[0]->{process}{status}{code} and 
+			(($state = $_[0]->{process}{status}{code}) !~ /^(DOWNLOADING|DOWNLOADED|TRANSFORMING|TRANSFORMED|SCHEDULED|UPLOADING)$/)
+		}
+	) or die 'Timed out waiting for integration synchronization';
+	if ($state eq 'SYNCHRONIZED') {
+		return 1;
+	}
+	return 0;
+}
+
 =item B<wait_project_enabled> PROJECT_URI
 
 Wait until project identified by its uri is in enabled state,
@@ -337,13 +374,13 @@ sub wait_project_enabled
 	my $project_uri = shift || die 'Project uri was not specified.';
 
 	my $state;
-	my $exported = $self->poll (
+	$self->poll (
 		sub { $self->{agent}->get ($project_uri) },
 		sub { $_[0] and exists $_[0]->{project} and exists $_[0]->{project}{content} and exists $_[0]->{project}{content}{state} and 
 			(($state = $_[0]->{project}{content}{state}) !~ /^(PREPARING|PREPARED|LOADING)$/)
 		}
 	) or die 'Timed out waiting for project preparation';
-	($state eq 'ENABLED') or die "Unable to enable project";
+	($state eq 'ENABLED') or die "Unable to enable project, status: $state";
 }
 
 =item B<create_user> LOGIN PASSWORD FIRST_NAME LAST_NAME PHONE COMPANY
@@ -482,7 +519,7 @@ sub schedule_msetl_graph {
 	my $cron = shift;
 	my $params = shift || { };
 	my $hidden_params = shift || { };
-	
+
 	my $type = "MSETL";
 	
 	$params->{"TRANSFORMATION_ID"} = $trans_id;
