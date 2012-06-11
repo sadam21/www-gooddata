@@ -343,7 +343,7 @@ sub get_integration_process
 		$self->get_uri ($process_uri));
 }
 
-sub wait_integration_synchronized
+sub wait_integration_finished
 {
 	my $self = shift;
 	my $process_uri = shift || die 'Integration process URI was not specified.';
@@ -352,13 +352,33 @@ sub wait_integration_synchronized
 	$self->poll (
 		sub { $self->{agent}->get ($process_uri) },
 		sub { $_[0] and exists $_[0]->{process} and exists $_[0]->{process}{status} and exists $_[0]->{process}{status}{code} and 
-			(($state = $_[0]->{process}{status}{code}) !~ /^(DOWNLOADING|DOWNLOADED|TRANSFORMING|TRANSFORMED|SCHEDULED|UPLOADING)$/)
+			(($state = $_[0]->{process}{status}{code}) !~ /^(NEW|SCHEDULED|DOWNLOADING|DOWNLOADED|TRANSFORMING|TRANSFORMED|UPLOADING|UPLOADED)$/)
 		}
 	) or die 'Timed out waiting for integration synchronization';
 	if ($state eq 'SYNCHRONIZED') {
 		return 1;
 	}
 	return 0;
+}
+
+sub get_integration
+{
+	my $self = shift;
+	my $integration_uri = shift || die 'Integration URI was not specified.';
+	
+	return $self->{agent}->get ($integration_uri);
+}
+
+sub get_running_integration_process_uri
+{
+	my $self = shift;
+	my $integration_uri = shift;
+	
+	my $process = get_integration ($self, $integration_uri)->{integration}{runningProcess};
+	if (defined $process) {
+		return $process->{links}{self};
+	}
+	return undef;
 }
 
 =item B<wait_project_enabled> PROJECT_URI
