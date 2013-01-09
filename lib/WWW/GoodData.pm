@@ -361,6 +361,25 @@ Return array of links to repoort resources on metadata server.
 
 =cut
 
+=item B<change_query_engine> PROJECT QUERY_ENGINE
+
+Change project service given its project id
+
+=cut
+
+sub change_query_engine # TODO: name, service ???
+{
+	my $self = shift;
+	my $project = shift or die 'Project must be specified';
+	my $query_engine = shoft or die 'Query engine must be specified';
+
+	my $service = {
+		service => {
+			queryEngine => $query_engine,
+		}
+	}
+}
+
 sub reports
 {
 	my $self = shift;
